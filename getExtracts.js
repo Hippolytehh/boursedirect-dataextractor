@@ -115,9 +115,6 @@ async function getReport() {
                             })
                             const data = await getInstruments(companyName);
                             if (data.instruments.data.length) {
-                                // console.log(data.instruments.data)
-                                // console.log(data.instruments.data[0])
-                                // console.log(data.instruments.data[0].isin)
                                 return {
                                     ...x,
                                     isin: data.instruments.data[0].isin,
@@ -125,18 +122,13 @@ async function getReport() {
                                     officialId: data.instruments.data[0].officialId,
                                     type: data.instruments.data[0].iso.type,
                                     name: data.instruments.data[0].Name
-                                }
-                            }
+                                };
+                            } else {
+                                return {
+                                    ...x
+                                };
+                            };
                         }));
-
-
-                        // const blob = new Blob([html], { type: 'text/html' });
-                        // const link = document.createElement('a');
-                        // link.href = URL.createObjectURL(blob);
-                        // link.download = `boursedirect-account-${account}-${formatDateToYYYYMMDD(date)}.html`;
-                        // document.body.appendChild(link);
-                        // link.click();
-                        // document.body.removeChild(link);
                         break;
                     }
                 };
