@@ -1,0 +1,26 @@
+{
+  "name": "boursedirect",
+  "version": "1.0.0",
+  "description": "How to get reports from Bourse Direct even for past years?",
+  "main": "getExtracts.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hippolytehh/boursedirect.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Hippolytehh/boursedirect/issues"
+  },
+  "homepage": "https://github.com/Hippolytehh/boursedirect#readme",
+  "devDependencies": {
+    "prisma": "^6.3.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.3.0"
+  }
+}

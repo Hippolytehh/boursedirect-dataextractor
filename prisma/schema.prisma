@@ -1,0 +1,53 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Trade {
+  id         String   @id @default(uuid())
+  date       DateTime
+  title      String?  @db.VarChar(255)
+  instrument String   @db.VarChar(255)
+  operation  String   @db.VarChar(10)
+  quantity   Decimal
+  price      Decimal
+  commission Decimal?
+  account    String   @db.Uuid
+  isin       String
+
+  @@map("book.trades")
+}
+
+model Account {
+  id    String  @id @default(uuid())
+  name  String? @db.VarChar(250)
+  type  String? @db.Uuid
+  owner String? @db.Uuid
+
+  @@map("administration.accounts")
+}
+
+model User {
+  id         String  @id @default(uuid())
+  firstName  String? @db.VarChar(255)
+  lastName   String? @db.VarChar(255)
+
+  @@map("administration.users")
+}
+
+model Product {
+  id    String  @id @default(uuid())
+  name  String? @db.VarChar(255)
+
+  @@map("boursedirect.products")
+}
