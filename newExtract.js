@@ -1,4 +1,7 @@
-const urls = Array.from({ length: 2025 - 2022 + 1 }, (_, i) => 2022 + i)
+const firstYear = 2025;
+const lastYear = 2025;
+
+const urls = Array.from({ length: lastYear - firstYear + 1 }, (_, i) => firstYear + i)
   .flatMap(year =>
     Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
       .flatMap(month =>
