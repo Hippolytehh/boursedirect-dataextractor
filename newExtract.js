@@ -1,33 +1,6 @@
 const firstYear = 2022;
 const lastYear = 2025;
 
-function transpose(arrays) {
-  if (!arrays.length) return [];
-  return arrays[0].map((_, i) => arrays.map(row => row[i]));
-};
-
-function formatMergeArr(data) {
-  const result = [];
-  let current = null;
-
-  data.forEach(row => {
-    if (row[0].trim() !== "") {
-      // Start a new main row
-      current = [...row]; // clone
-      result.push(current);
-    } else if (current) {
-      // Append non-empty values to the end of the last row
-      row.forEach(cell => {
-        if (cell.trim() !== "") {
-          current.push(cell);
-        }
-      });
-    }
-  });
-
-  return result;
-};
-
 const urls = Array.from({ length: lastYear - firstYear + 1 }, (_, i) => firstYear + i)
   .flatMap(year =>
     Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
@@ -60,7 +33,37 @@ await testUrls(urls).then(r => {
     localStorage.setItem('releves', JSON.stringify(r));
 });
 
+
+
+
 const releves = JSON.parse(localStorage.getItem('releves'));
+
+function transpose(arrays) {
+  if (!arrays.length) return [];
+  return arrays[0].map((_, i) => arrays.map(row => row[i]));
+};
+
+function formatMergeArr(data) {
+  const result = [];
+  let current = null;
+
+  data.forEach(row => {
+    if (row[0].trim() !== "") {
+      // Start a new main row
+      current = [...row]; // clone
+      result.push(current);
+    } else if (current) {
+      // Append non-empty values to the end of the last row
+      row.forEach(cell => {
+        if (cell.trim() !== "") {
+          current.push(cell);
+        }
+      });
+    }
+  });
+
+  return result;
+};
 
 const formatReleves = () => {
   return releves.map(r => {
@@ -114,6 +117,7 @@ const generatePrompt = () => {
       THE LENGHT OF THE ARRAY YOUR WILL RETURN MUST BE EQUAL TO THE LENGTH OF THE ARRAY I PROVIDE YOU, PLEASE DO NOT REMOVE/ADD OBJECTS.
 
       Notes:
+      - Return a JSON that is already a JSON.stringify, so I can directly save it to the browser memory
       - reports are formatted in French, example: "ACHAT COMPTANT"= "BUY"...
       - if there is a constraint, the value must match the constraint (ex: if you see a "coupons", the closest type is "DIVIDEND"...)
       - if you see a 12 character long string starting with 2 letters as a country code, followed by 10 digits and characters, it is an ISIN code
@@ -132,10 +136,10 @@ const generatePrompt = () => {
 const script = document.createElement("script");
 script.src = "https://js.puter.com/v2/";
 script.onload = () => {
-    puter.ai.chat(generatePrompt(), { model: "gpt-4.1-nano" })
+    puter.ai.chat(generatePrompt(), { model: "gpt-5-mini" })
         .then(response => {
           console.log(response.message.content);
-          localStorage.setItem('operations', JSON.stringify(response.message.content));
+          localStorage.setItem('operations', response.message.content);
         });
 };
 document.head.appendChild(script);

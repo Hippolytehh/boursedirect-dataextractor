@@ -21,6 +21,9 @@
     "prisma": "^6.3.0"
   },
   "dependencies": {
-    "@prisma/client": "^6.3.0"
-  }
+    "@notionhq/client": "^4.0.2",
+    "@prisma/client": "^6.3.0",
+    "express": "^5.1.0"
+  },
+  "type": "module"
 }
