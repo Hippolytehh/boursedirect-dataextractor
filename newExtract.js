@@ -62,7 +62,7 @@ await testUrls(urls).then(r => {
 
 const releves = JSON.parse(localStorage.getItem('releves'));
 
-const formatReleves = (releves) => {
+const formatReleves = () => {
   return releves.map(r => {
     const parser = new DOMParser();
     const subDocument = parser.parseFromString(r.content, 'text/html');
@@ -96,33 +96,43 @@ const formatReleves = (releves) => {
   });
 };
 
-const generatePrompt = (releves) => {
-      return `Below is a list of rows currently in raw html format you need to format properly into a single array (json for instance) with the following informations:
+const renderReleves = () => {
+  return formatReleves().flat().map(obj => {
+    const mapped = obj.headers.reduce((acc, header, index) => {
+      acc[header] = obj.values[index];
+      return acc;
+    }, {});
+    mapped.url = obj.url;
+    return mapped;
+  });
+};
+
+const generatePrompt = () => {
+      return `Below is a list of unformatted rows I extracted from html reports. I need you to format them properly into a single array of objects (json) with the following informations:
+
+      ***WARNING***
+      THE LENGHT OF THE ARRAY YOUR WILL RETURN MUST BE EQUAL TO THE LENGTH OF THE ARRAY I PROVIDE YOU, PLEASE DO NOT REMOVE/ADD OBJECTS.
 
       Notes:
-      - reports may be formatted in French, example: "ACHAT COMPTANT"= "BUY"...
-      - several rows can share the same url
-      - if there is a constraint, the value must match the constraint
+      - reports are formatted in French, example: "ACHAT COMPTANT"= "BUY"...
+      - if there is a constraint, the value must match the constraint (ex: if you see a "coupons", the closest type is "DIVIDEND"...)
       - if you see a 12 character long string starting with 2 letters as a country code, followed by 10 digits and characters, it is an ISIN code
-      - SECURITY will usually be a value that is not really meaningful to you because it is a security name/code, it will come after the ISIN code if both the ISIN and SECURITY exist (usually for BUY/SELL/COUPON)
+      - SECURITY is usually a value that is not really meaningful to you because it is a security name/code, it will come after the ISIN code if both the ISIN and SECURITY exist (usually for BUY/SELL/COUPON)
 
       Don't hesitate to leave empty cells you don't have information for. For instance, if the row is about a money investing/desinvesting, you cannot add a SECURITY/isin or quantity, only an amount of money, at a date of type INVESTING.
       
       - columns: ["DATE" (datetime), "SECURITY" (text or null), "TYPE" (text or null, constraint: ["BUY", "SELL", "FEES", "TAXES", "DIVIDEND", "INVESTMENT", "DESINVESTMENT", "REGULARISATION", "OTHER"]), "AMOUNT" (float), "ACCOUNT" (text, constraint: ["PEA"]), "ISIN" (text or null, constraint: must be 12 chars), "BROKER" (text, constraint: ["BOURSE DIRECT"]),	"QUANTITY" (float or null), "URL" (text or null)]
-      - raw html reports:
-        ${JSON.stringify(formatReleves(releves).flat().map(arr => {
-          return arr.headers.reduce((acc, header, index) => {
-            acc[header] = arr.values[index];
-            return acc;
-          }, {});
-        }))}.
+      - raw data (${renderReleves().length} rows BEWARE OF RESPECTING THE LENGTH OF THE ARRAY):
+        ${JSON.stringify(
+          renderReleves()
+        )}.
       `
-}
+};
 
 const script = document.createElement("script");
 script.src = "https://js.puter.com/v2/";
 script.onload = () => {
-    puter.ai.chat(generatePrompt(releves), { model: "gpt-4.1-nano" })
+    puter.ai.chat(generatePrompt(), { model: "gpt-4.1-nano" })
         .then(response => {
           console.log(response.message.content);
           localStorage.setItem('operations', JSON.stringify(response.message.content));
