@@ -1,5 +1,32 @@
-const firstYear = 2025;
+const firstYear = 2022;
 const lastYear = 2025;
+
+function transpose(arrays) {
+  if (!arrays.length) return [];
+  return arrays[0].map((_, i) => arrays.map(row => row[i]));
+};
+
+function formatMergeArr(data) {
+  const result = [];
+  let current = null;
+
+  data.forEach(row => {
+    if (row[0].trim() !== "") {
+      // Start a new main row
+      current = [...row]; // clone
+      result.push(current);
+    } else if (current) {
+      // Append non-empty values to the end of the last row
+      row.forEach(cell => {
+        if (cell.trim() !== "") {
+          current.push(cell);
+        }
+      });
+    }
+  });
+
+  return result;
+};
 
 const urls = Array.from({ length: lastYear - firstYear + 1 }, (_, i) => firstYear + i)
   .flatMap(year =>
@@ -35,43 +62,70 @@ await testUrls(urls).then(r => {
 
 const releves = JSON.parse(localStorage.getItem('releves'));
 
-// let htmlTable;
+const formatReleves = (releves) => {
+  return releves.map(r => {
+    const parser = new DOMParser();
+    const subDocument = parser.parseFromString(r.content, 'text/html');
+    const htmlTable = subDocument.querySelector("table tr:nth-child(3) table tbody");
+    const firstTr = htmlTable.querySelector("tr:nth-child(1)");
+    const headerNodes = firstTr.querySelectorAll("td");
+    const headers = [...headerNodes].map(header => {
+      return header.innerText.trim();
+    });
+    const secondTr = htmlTable.querySelector("tr:nth-child(2)");
+    const tdNodes = secondTr.querySelectorAll(":scope > td");
+    const trs = [...tdNodes].map(td => {
+      const tbody = td.querySelector("tbody");
+      const trNodes = tbody.querySelectorAll(":scope > tr");
+      return [...trNodes];
+    });
+    const transposedTrs = transpose(trs);
+    let toFormatArr = transposedTrs.map(arr => {
+      return arr.map(tr => {
+        return tr.innerText.trim();
+      });
+    });
+    toFormatArr = toFormatArr.filter(x => x.some((elem) => elem != ''));
+    return formatMergeArr(toFormatArr).map((x) => {
+            return {
+              url: r.url,
+              headers: [...headers, "Quantité", "Détails"],
+              values: [...x.slice(0, 5), x.slice(5).join(" // ")]
+            };
+        });
+  });
+};
 
-// const sampleUrl = releves[0].url;
-// fetch(sampleUrl).then(r => r.text()).then(html => {
-//   const parser = new DOMParser();
-//   const subDocument = parser.parseFromString(html, 'text/html');
+const generatePrompt = (releves) => {
+      return `Below is a list of rows currently in raw html format you need to format properly into a single array (json for instance) with the following informations:
 
-//   htmlTable = subDocument.querySelector("table tr:nth-child(3) table");
-  
-// });
+      Notes:
+      - reports may be formatted in French, example: "ACHAT COMPTANT"= "BUY"...
+      - several rows can share the same url
+      - if there is a constraint, the value must match the constraint
+      - if you see a 12 character long string starting with 2 letters as a country code, followed by 10 digits and characters, it is an ISIN code
+      - SECURITY will usually be a value that is not really meaningful to you because it is a security name/code, it will come after the ISIN code if both the ISIN and SECURITY exist (usually for BUY/SELL/COUPON)
 
-// console.log(htmlTable);
+      Don't hesitate to leave empty cells you don't have information for. For instance, if the row is about a money investing/desinvesting, you cannot add a SECURITY/isin or quantity, only an amount of money, at a date of type INVESTING.
+      
+      - columns: ["DATE" (datetime), "SECURITY" (text or null), "TYPE" (text or null, constraint: ["BUY", "SELL", "FEES", "TAXES", "DIVIDEND", "INVESTMENT", "DESINVESTMENT", "REGULARISATION", "OTHER"]), "AMOUNT" (float), "ACCOUNT" (text, constraint: ["PEA"]), "ISIN" (text or null, constraint: must be 12 chars), "BROKER" (text, constraint: ["BOURSE DIRECT"]),	"QUANTITY" (float or null), "URL" (text or null)]
+      - raw html reports:
+        ${JSON.stringify(formatReleves(releves).flat().map(arr => {
+          return arr.headers.reduce((acc, header, index) => {
+            acc[header] = arr.values[index];
+            return acc;
+          }, {});
+        }))}.
+      `
+}
 
 const script = document.createElement("script");
 script.src = "https://js.puter.com/v2/";
 script.onload = () => {
-    puter.ai.chat(`
-      Below is a list of rows currently in raw html format you need to format into a single array (json for instance) with the following informations:
-      - headers: ["DATE" (datetime), "TICKER" (text or null), "TYPE" (text, constraint: ["BUY", "SELL", "FEES", "TAXES", "DIVIDEND", "INVESTMENT", "DESINVESTMENT", "REGULARISATION", "OTHER"]), "AMOUNT" (float), "ACCOUNT" (text, constraint: ["PEA"]), "ISIN" (text or null, constraint: 12 chars), "BROKER" (text, constraint: ["BOURSE DIRECT"]),	"QUANTITY" (float or null), "URL" (text or null)]
-      - raw html rows: [
-        ${
-          releves.map(r => {
-            const parser = new DOMParser();
-            const subDocument = parser.parseFromString(r.content, 'text/html');
-            htmlTable = subDocument.querySelector("table tr:nth-child(3) table tbody tr:nth-child(2)");
-            const rowString = htmlTable.innerHTML.replaceAll("&nbsp;", "") + "\nurl: " + r.url;
-            return rowString;
-          })
-        }
-      ]
-
-      Notes:
-      - Reports may be formatted in French, example: "ACHAT COMPTANT"= "BUY"...
-      - several rows can share the same url 
-
-      Don't hesitate to leave empty cells you don't have information for. For instance, if the row is about a money investing/desinvesting, you cannot add a ticker/isin or quantity, only an amount of money, at a date of type INVESTING.
-      `, { model: "gpt-4.1-nano" })
-        .then(response => console.log(response.message.content));
+    puter.ai.chat(generatePrompt(releves), { model: "gpt-4.1-nano" })
+        .then(response => {
+          console.log(response.message.content);
+          localStorage.setItem('operations', JSON.stringify(response.message.content));
+        });
 };
 document.head.appendChild(script);
