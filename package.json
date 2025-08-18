@@ -4,7 +4,8 @@
   "description": "How to get reports from Bourse Direct even for past years?",
   "main": "getExtracts.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node server.js"
   },
   "repository": {
     "type": "git",
@@ -23,7 +24,8 @@
   "dependencies": {
     "@notionhq/client": "^4.0.2",
     "@prisma/client": "^6.3.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "jsdom": "^26.1.0"
   },
   "type": "module"
 }

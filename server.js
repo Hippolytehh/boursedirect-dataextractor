@@ -1,6 +1,6 @@
 import express from 'express';
 import { Client } from "@notionhq/client";
-import { randomUUID } from 'crypto';
+import { formatReleve, renderReleves, generatePrompt } from './functions.js';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
@@ -9,7 +9,45 @@ app.use(express.json());
 const port = 3000;
 
 
+// ********************************************************
+
+app.post('/format-releve', async (req, res) => {
+    const htmlTable = req.body.htmlTable;
+    const url = req.body.url;
+    if (!htmlTable) {
+        return res.status(400).send('HTML table is required');
+    }
+    try {
+        const formattedReleve = formatReleve({ htmlTable, url });
+        return res.json(formattedReleve);
+    } catch (error) {
+        console.error('Error formatting releve:', error);
+        return res.status(500).send('Error formatting releve');
+    };
+});
+
+app.post('/render-releves', async (req, res) => {
+    const releves = req.body.releves;
+    if (!releves || !Array.isArray(releves)) {
+        return res.status(400).send('Invalid releves data');
+    }
+    const renderedReleves = renderReleves(releves);
+    return res.json(renderedReleves);
+});
+
+app.post('/generate-prompt', async (req, res) => {
+    const releves = req.body.releves;
+    if (!releves || !Array.isArray(releves)) {
+        return res.status(400).send('Invalid releves data');
+    }
+    const prompt = generatePrompt(releves);
+    return res.json({ prompt });
+});
+
+// ********************************************************
+
 app.post('/add-data', async (req, res) => {
+    const accountType = req.query.accountType;
     const databaseId = req.query.databaseId;
     if (!databaseId) {
         return res.status(400).send('Database ID is required');
@@ -27,12 +65,11 @@ app.post('/add-data', async (req, res) => {
         if (!item.DATE) continue; // skip invalid dates
 
         const properties = {
-            Name: { title: [{ text: { content: randomUUID() } }] },
             DATE: { date: { start: new Date(item.DATE).toISOString() } },
             ...(item.SECURITY && { TICKER: { select: { name: item.SECURITY.replaceAll(",", ".") } } }),
             ...(item.TYPE && { TYPE: { select: { name: item.TYPE } } }),
             ...(item.AMOUNT != null && { AMOUNT: { number: item.AMOUNT } }),
-            ACCOUNT: { select: { name: "PEA" } },
+            ACCOUNT: { select: { name: accountType ?? "CTO" } },
             ...(item.ISIN && { ISIN: { select: { name: item.ISIN } } }),
             BROKER: { select: { name: "BOURSE DIRECT" } },
             ...(item.QUANTITY != null && { QUANTITY: { number: item.QUANTITY } }),
@@ -50,12 +87,18 @@ app.post('/add-data', async (req, res) => {
         // Wait 50ms between requests to prevent conflict errors
         await new Promise(resolve => setTimeout(resolve, 0.2));
     };
+
+    return res.json({
+        message: 'Data added successfully',
+        databaseId: databaseId
+    });
+
 });
 
 app.get('/create-notion-db', async (req, res) => {
     const response = await notion.databases.create({
         parent: { page_id: "2414ca7f41e480eea921c7294fa9d2b5" },
-        title: [{ type: 'text', text: { content: 'Your Portfolio' } }],
+        title: [{ type: 'text', text: { content: `Portfolio` } }],
         properties: {
             Name: { title: {} },
             Description: { rich_text: {} },
@@ -70,7 +113,7 @@ app.get('/create-notion-db', async (req, res) => {
             URL: { url: {} }
         }
     });
-    return res.json(response);
+    return res.json(response.id);
 });
 
 app.listen(port, () => {
