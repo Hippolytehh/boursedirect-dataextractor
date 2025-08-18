@@ -42,7 +42,6 @@ export const formatReleve = ({ htmlTable, url }) => {
   const tdNodes = secondTr.children;
   const trs = [...tdNodes].map(td => {
     const tbody = td.querySelector("tbody");
-    console.log(tbody.innerHTML);
     const trNodes = tbody.querySelectorAll(":scope > tr");
     return [...trNodes];
   });
@@ -62,8 +61,8 @@ export const formatReleve = ({ htmlTable, url }) => {
     });
 };
 
-export const renderReleves = (releves) => {
-  return formatReleves(releves).flat().map(obj => {
+export const renderReleves = (formattedReleves) => {
+  return formattedReleves.flat().map(obj => {
     const mapped = obj.headers.reduce((acc, header, index) => {
       acc[header] = obj.values[index];
       return acc;
@@ -73,8 +72,7 @@ export const renderReleves = (releves) => {
   });
 };
 
-export const generatePrompt = (releves) => {
-      const renderedReleves = renderReleves(releves);
+export const generatePrompt = (renderedReleves) => {
       return `Below is a list of unformatted rows I extracted from html reports. I need you to format them properly into a single array of objects (json) with the following informations:
 
       ***WARNING***

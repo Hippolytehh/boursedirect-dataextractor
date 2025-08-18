@@ -1,11 +1,15 @@
 import express from 'express';
 import { Client } from "@notionhq/client";
 import { formatReleve, renderReleves, generatePrompt } from './functions.js';
+import cors from "cors";
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
 const app = express();
 app.use(express.json());
+app.use(cors({
+  origin: "https://www.boursedirect.fr"
+}));
 const port = 3000;
 
 
@@ -27,20 +31,20 @@ app.post('/format-releve', async (req, res) => {
 });
 
 app.post('/render-releves', async (req, res) => {
-    const releves = req.body.releves;
-    if (!releves || !Array.isArray(releves)) {
+    const formattedReleves = req.body.formattedReleves;
+    if (!formattedReleves || !Array.isArray(formattedReleves)) {
         return res.status(400).send('Invalid releves data');
     }
-    const renderedReleves = renderReleves(releves);
+    const renderedReleves = renderReleves(formattedReleves);
     return res.json(renderedReleves);
 });
 
 app.post('/generate-prompt', async (req, res) => {
-    const releves = req.body.releves;
-    if (!releves || !Array.isArray(releves)) {
+    const renderedReleves = req.body.renderedReleves;
+    if (!renderedReleves || !Array.isArray(renderedReleves)) {
         return res.status(400).send('Invalid releves data');
     }
-    const prompt = generatePrompt(releves);
+    const prompt = generatePrompt(renderedReleves);
     return res.json({ prompt });
 });
 
