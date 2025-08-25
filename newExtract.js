@@ -40,8 +40,7 @@ const parser = new DOMParser();
 const formattedReleves = (await Promise.all(
   releves.map(async item => {
     const subDocument = parser.parseFromString(item.content, 'text/html');
-    const htmlTable = subDocument.querySelector("table tr:nth-child(3) table");
-    const tableHtml = htmlTable ? htmlTable.outerHTML : null;
+    const htmlTable = subDocument.querySelector("table tr:nth-child(3) table").outerHTML;
 
     try {
       const response = await fetch("http://localhost:3000/format-releve", {
@@ -49,7 +48,7 @@ const formattedReleves = (await Promise.all(
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ htmlTable: tableHtml, url: item.url })
+        body: JSON.stringify({ htmlTable: htmlTable, url: item.url })
       });
       return await response.json();
     } catch (error) {
@@ -58,29 +57,10 @@ const formattedReleves = (await Promise.all(
   })
 )).flat();
 
-const renderedReleves = await fetch("http://localhost:3000/render-releves", {
+const operations = await fetch("http://localhost:3000/convert-releves-to-operations", {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({ formattedReleves })
 }).then(response => response.json());
-
-const promptText = await fetch("http://localhost:3000/generate-prompt", {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({ renderedReleves })
-}).then(response => response.json());
-
-const script = document.createElement("script");
-script.src = "https://js.puter.com/v2/";
-script.onload = () => {
-    puter.ai.chat(promptText.prompt, { model: "gpt-4.1-mini" })
-        .then(response => {
-          console.log(response.message.content);
-          localStorage.setItem('operations', response.message.content);
-        });
-};
-document.head.appendChild(script);

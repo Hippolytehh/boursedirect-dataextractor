@@ -1,4 +1,5 @@
 import { JSDOM } from 'jsdom';
+import { Operation } from './models/operation.js';
 
 const transpose = (arrays) => {
   if (!arrays.length) return [];
@@ -73,24 +74,38 @@ export const renderReleves = (formattedReleves) => {
 };
 
 export const generatePrompt = (renderedReleves) => {
-      return `Below is a list of unformatted rows I extracted from html reports. I need you to format them properly into a single array of objects (json) with the following informations:
+      return `
+      
+      YOU MUST RETURN A JSON ONLY (NOTHING ELSE). Your json must be stringify as less as possible.
 
+      HERE'S SOMETHING I WANT YOU TO AVOID, the JSON starting with "json\n[\n  {". Please prefer "\n[\n{" and add "\" only if needed".
+
+      At the end of the prompt, you will have a list of operations you need to clean and reformat. 
+
+      I need you to make these raw operations match a standard schema of operations as following (mongoose): 
+      ${
+        JSON.stringify(Operation.schema.obj)
+      }
+      
       ***WARNING***
       THE LENGHT OF THE ARRAY YOUR WILL RETURN MUST BE EQUAL TO THE LENGTH OF THE ARRAY I PROVIDE YOU, PLEASE DO NOT REMOVE/ADD OBJECTS.
-
-      Notes:
-      - Return a JSON that is already a JSON.stringify, so I can directly save it to the browser memory
-      - reports are formatted in French, example: "ACHAT COMPTANT"= "BUY"...
-      - if there is a constraint, the value must match the constraint (ex: if you see a "coupons", the closest type is "DIVIDEND"...)
-      - if you see a 12 character long string starting with 2 letters as a country code, followed by 10 digits and characters, it is an ISIN code
-      - SECURITY is usually a value that is not really meaningful to you because it is a security name/code, it will come after the ISIN code if both the ISIN and SECURITY exist (usually for BUY/SELL/COUPON)
-
+      
       Don't hesitate to leave empty cells you don't have information for. For instance, if the row is about a money investing/desinvesting, you cannot add a SECURITY/isin or quantity, only an amount of money, at a date of type INVESTING.
       
-      - columns: ["DATE" (datetime), "SECURITY" (text or null), "TYPE" (text or null, constraint: ["BUY", "SELL", "FEES", "TAXES", "DIVIDEND", "INVESTMENT", "DESINVESTMENT", "REGULARISATION", "OTHER"]), "AMOUNT" (float), "ACCOUNT" (text, constraint: ["PEA"]), "ISIN" (text or null, constraint: must be 12 chars), "BROKER" (text, constraint: ["BOURSE DIRECT"]),	"QUANTITY" (float or null), "URL" (text or null)]
-      - raw data (${renderedReleves.length} rows BEWARE OF RESPECTING THE LENGTH OF THE ARRAY):
+      DATA:
+      - Number of operations to process: ${renderedReleves.length} ;
+      - Below are the operations you need to process: 
+      
         ${JSON.stringify(
           renderedReleves
-        )}.
+        )}
       `
+};
+
+export const chunkArray = (arr, step) => {
+    const result = [];
+    for (let i = 0; i < arr.length; i += step) {
+        result.push(arr.slice(i, i + step));
+    };
+    return result;
 };

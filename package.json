@@ -22,11 +22,13 @@
     "prisma": "^6.3.0"
   },
   "dependencies": {
+    "@mistralai/mistralai": "^1.9.18",
     "@notionhq/client": "^4.0.2",
     "@prisma/client": "^6.3.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "jsdom": "^26.1.0"
+    "jsdom": "^26.1.0",
+    "mongoose": "^8.18.0"
   },
   "type": "module"
 }
