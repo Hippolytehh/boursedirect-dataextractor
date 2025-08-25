@@ -1,5 +1,6 @@
-const firstYear = 2022;
-const lastYear = 2025;
+const firstYear = 2024;
+const lastYear = 2024;
+const accountNumber = 1;
 
 const urls = Array.from({ length: lastYear - firstYear + 1 }, (_, i) => firstYear + i)
   .flatMap(year =>
@@ -7,7 +8,7 @@ const urls = Array.from({ length: lastYear - firstYear + 1 }, (_, i) => firstYea
       .flatMap(month =>
         Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'))
           .map(day =>
-            `https://www.boursedirect.fr/priv/new/releveOpe.php?nc=2&type=RO&year=${year}&month=${month}&day=${day}&trash=/avis.pdf`
+            `https://www.boursedirect.fr/priv/new/releveOpe.php?nc=${accountNumber}&type=RO&year=${year}&month=${month}&day=${day}&trash=/avis.pdf`
           )
       )
   );
@@ -64,3 +65,5 @@ const operations = await fetch("http://localhost:3000/convert-releves-to-operati
   },
   body: JSON.stringify({ formattedReleves })
 }).then(response => response.json());
+
+console.log(operations);
