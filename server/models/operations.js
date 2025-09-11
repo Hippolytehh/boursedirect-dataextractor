@@ -8,16 +8,3 @@ export const operationsSchema = new mongoose.Schema({
 });
 
 export const Operations = mongoose.model('Operations', operationsSchema);
-
-// const operations = Operations({
-//     operations: [
-//         Operation(
-//             {
-//                 date: new Date(Date.now()),
-//                 amount: 20
-//             }
-//         )
-//     ]
-// });
-
-// await operations.validate();

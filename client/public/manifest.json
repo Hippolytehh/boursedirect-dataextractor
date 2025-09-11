@@ -1,0 +1,21 @@
+{
+    "manifest_version": 3,
+    "name": "Vite Project",
+    "version": "1.0.0",
+    "short_name": "ViteApp",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#42b883",
+    "description": "A Vite-powered web application.",
+    "action": {
+        "default_popup": "index.html"
+    },
+    "permissions": [
+        "scripting"
+    ],
+    "host_permissions": [
+        "http://*/*",
+        "https://*/*"
+    ]
+}

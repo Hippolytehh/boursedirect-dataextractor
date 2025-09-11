@@ -55,14 +55,3 @@ export const operationSchema = new mongoose.Schema({
 });
 
 export const Operation = mongoose.model('Operation', operationSchema);
-
-console.log(
-    `${JSON.stringify(Operation.schema.obj)}`
-);
-// const operation = Operation(
-//     {
-//         date: new Date(Date.now()),
-//         amount: 100
-//     }
-// );
-// await operation.validate();
