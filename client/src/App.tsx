@@ -6,40 +6,18 @@ import 'react-toastify/dist/ReactToastify.css';
 function App() {
 
   const url = "https://www.boursedirect.fr";
-  useEffect(() => {
-    let toastId = null;
-
-    const checkUrl = async () => {
-      if (!chrome?.tabs?.query) return;
-
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      const isRightWebsite = tab.url?.startsWith(url);
-
-      if (!isRightWebsite && !toast.isActive(toastId!)) {
-        toastId = toast.error(
-          `Please navigate to ${url} to use this feature.`,
-          { autoClose: false, toastId: 'wrong-website' }
-        );
-      } else if (isRightWebsite && toast.isActive(toastId!)) {
-        toast.dismiss(toastId!);
-        toastId = null;
-      }
-    };
-
-    checkUrl();
-    const interval = setInterval(checkUrl, 2000);
-
-    return () => {
-      clearInterval(interval);
-      if (toast.isActive(toastId!)) toast.dismiss(toastId!);
-    };
-  }, []);
 
   const [formData, setFormData] = useState({
-    startDate: new Date(2020, 1, 1).toISOString().substring(0, 10),
-    endDate: new Date(Date()).toISOString().substring(0, 10),
+    startYear: new Date().getFullYear() - 1,
+    endYear: new Date().getFullYear(),
     accountNumber: 1,
   });
+  const [canSubmit, setCanSubmit] = useState(true);
+
+  useEffect(() => {
+    // Only enable submit if chrome.tabs.query is available
+    setCanSubmit(!!(chrome && chrome.tabs && chrome.tabs.query));
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<any>) => {
     const { id, value } = e.target;
@@ -49,37 +27,126 @@ function App() {
     }));
   };
 
-  const handleSubmit = (e: React.ChangeEvent<any>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Check if on the right website
+    if (chrome?.tabs?.query) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const isRightWebsite = tab.url?.startsWith(url);
+      if (!isRightWebsite) {
+        toast.error(`Please navigate to ${url} to use this feature.`, {
+          autoClose: false,
+          toastId: 'wrong-website',
+        });
+        return;
+      }
+    };
     // Handle form submission logic here
     const emptyFields = Object.entries(formData).filter(x => !x[1]);
     if (emptyFields.length) {
       toast.error(`Please fill in the following fields: ${emptyFields.map(x => x[0]).join(', ')}`, {
-          position: "top-right",
-          autoClose: 2000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          progress: undefined,
-        });
-        return;
-    };
-    toast.success('Form submitted', {
-      position: "top-right",
-      autoClose: 2000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
-    });
-    console.log('Form submitted:', formData);
-  };
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      return;
+    }
+    const toastLoading = toast.loading('Loading');
+    try {
+      const startYear = formData.startYear;
+      const endYear = formData.endYear;
+      const accountNumber = formData.accountNumber;
 
-  const onClick = async () => {
-    let [tab] = await chrome.tabs.query({ active: true });
-    tab.url;
+      const urls = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i)
+        .flatMap(year =>
+          Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))
+            .flatMap(month =>
+              Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'))
+                .map(day =>
+                  `https://www.boursedirect.fr/priv/new/releveOpe.php?nc=${accountNumber}&type=RO&year=${year}&month=${month}&day=${day}&trash=/avis.pdf`
+                )
+            )
+        );
+
+      const testUrls = async (urlsToTest: string[]) => {
+        const results = await Promise.all(
+          urlsToTest.map(async (url) => {
+            try {
+              const response = await fetch(url, { method: 'GET' }); // Use HEAD to just get headers
+              const html = await response.text();
+              return { url, status: response.status, hasReleve: html.startsWith("Erreur fatale veuillez contacter le support Capitol") ? false : true, content: html };
+            } catch (error: any) {
+              return { url, error: error.message };
+            }
+          })
+        );
+        const hasReleveResults = results.filter(result => result.hasReleve);
+        return hasReleveResults;
+      };
+
+      const relevesArr = await testUrls(urls);
+      localStorage.setItem('releves', JSON.stringify(relevesArr));
+
+      const releves = JSON.parse(localStorage.getItem('releves') || '[]');
+
+      const parser = new DOMParser();
+
+      const formattedReleves = (await Promise.all(
+        releves.map(async (item: any) => {
+          const subDocument = parser.parseFromString(item.content, 'text/html');
+          const htmlTable = subDocument.querySelector("table tr:nth-child(3) table")?.outerHTML;
+          if (!htmlTable) { throw new Error("No table found.")};
+          try {
+            const response = await fetch("http://localhost:3000/format-releve", {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ htmlTable: htmlTable, url: item.url })
+            });
+            return await response.json();
+          } catch (error: any) {
+            return { error: error.message, url: item.url };
+          }
+        })
+      )).flat();
+
+      const operations = await fetch("http://localhost:3000/convert-releves-to-operations", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ formattedReleves })
+      }).then(response => response.json());
+
+      console.log(operations);
+
+      toast.success('Form submitted', {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+
+    } catch (Exception: any) {
+      toast.error(`${Exception}`, {
+        position: "top-right",
+        autoClose: 2000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      return;
+    }
   };
 
   return (
@@ -103,25 +170,29 @@ function App() {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="startYear" className="block text-sm font-medium text-gray-700">
               Start Date
             </label>
             <input
-              type="date"
-              id="startDate"
-              value={formData.startDate}
+              type="number"
+              id="startYear"
+              min={2000}
+              max={new Date().getFullYear()}
+              value={formData.startYear}
               onChange={handleChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
           </div>
           <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="endYear" className="block text-sm font-medium text-gray-700">
               End Date
             </label>
             <input
-              type="date"
-              id="endDate"
-              value={formData.endDate}
+              type="number"
+              id="endYear"
+              min={2000}
+              max={new Date().getFullYear()}
+              value={formData.endYear}
               onChange={handleChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             />
@@ -144,21 +215,20 @@ function App() {
           <div className="pt-4">
             <button
               type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer"
+              className={
+                `w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium
+                ${canSubmit
+                  ? 'text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer'
+                  : 'text-gray-300 bg-gray-400 cursor-not-allowed'}
+                `
+              }
+              disabled={!canSubmit}
+              title={!canSubmit ? 'This feature is only available in the Chrome extension context.' : undefined}
             >
               Start
             </button>
           </div>
         </form>
-          <div className="pt-4">
-            <button
-              type="button"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 cursor-pointer"
-              onClick={onClick}
-            >
-              Test
-            </button>
-          </div>
       </div>
       <ToastContainer />
     </div>
